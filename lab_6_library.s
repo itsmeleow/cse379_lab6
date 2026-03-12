@@ -25,11 +25,24 @@ RXIC:		.equ 0x010 		; UART Clear Bit Mask (Bit 4)
 ; Interrupt 0-31 Set Enable Register - EN0 0xE000E000
 EN0:		.equ 0x100 		; EN0 Offset
 UART_EN0M:	.equ 0x020		; UART0 Interrupt Enable Mask (Bit 5)
+; GPIO_EN0M .equ 			BIT 30
+; T0_EN0M 	.equ 			BIT 19
 
 ; GPIO CONSTANTS - Base 0x400FE000
 RCGPIO:		.equ 0x608		; Enable GPIO Clock (Disable 0 / Enable 1)
 PRGPIO:		.equ 0xA08		; Check GPIO Clock Ready (Not Ready 0 / Ready 1)
 PORTFM:		.equ 0x020 		; Port F Bit Mask
+RCGCTIMER:	.equ 0x604		; Enable Timer Clock (Disable 0 / Enable 1)
+PRTIMER:	.equ 0xA04		; Check Timer Clock Ready (Not Ready 0 / Ready 1)
+
+; TIMER 0 (GP) - Base 0x40030000
+GPTMCFG:	.equ 0x00		; Enable Timer 32-Bit Mode (use config 0)
+GPTMTAMR:	.equ 0x004		; Enable Timer Periodic Mode - continuously count through range of values
+GPTMTAILR:	.equ 0x028		; Set Interrupt Frequency
+GPTMIMR:	.equ 0x018		; Enable Timer for Interrupts (Disable 0 / Enable 1)
+TATOIM:		.equ 0x000		; Timer A Time Out Interrupt Mask
+GPTMCTL:	.equ 0x00C		; Enable Timer (Disable 0 / Enable 1)
+TAEN:		.equ 0x000		; Enable Timer A - bit 0 (Disable 0 / Enable 1)
 
 ; GPIO PORT F - Base 0x40025000
 GPIODIR:	.equ 0x400		; Data Direction Register
