@@ -1,24 +1,4 @@
 
-	.text
-	.global uart_init
-	.global uart_interrupt_init
-	.global gpio_init
-	.global gpio_interrupt_init
-	.global timer_interrupt_init
-	.global simple_read_character
-	.global output_character
-	.global read_string
-	.global output_string
-
-
-	; global constants
-	.global UARTICR
-	.global RXIC
-	.global GPIOICR
-	.global SW1
-	.global GPTMICR
-	.global TATOIM
-
 
 ; UART0 CONSTANTS - Base Address 0x4000C000
 UART: 		.equ 0x618		; Emable UART0 Clock
@@ -72,6 +52,17 @@ GPIOIM:		.equ 0x410 		; GPIO Interrupt Mask Register (Disable 0 / Enable 1)
 GPIOICR: 	.equ 0x41C		; GPIO Interrupt Clear Register
 
 
+	.text
+	.global uart_init
+	.global uart_interrupt_init
+	.global gpio_init
+	.global gpio_interrupt_init
+	.global timer_init
+	.global timer_interrupt_init
+	.global simple_read_character
+	.global output_character
+	.global read_string
+	.global output_string
 
 
 uart_init:
@@ -264,7 +255,7 @@ gpio_interrupt_init:
 timer_init:
 	PUSH {r4-r12, lr}
 
-
+	MOV r5, #0
 
 	POP {r4-r12, lr}
 	MOV pc, lr
