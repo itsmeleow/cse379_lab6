@@ -11,6 +11,8 @@ TATOIM:		.equ 0x001		; Timer A Time Out Interrupt Mask (bit 0) (Disable 0 / Enab
 
 clear_screen:		.byte 0xC,0
 space:				.byte 0x20
+asterisk:			.byte 0x2A
+start_coord:		.half 0xFA
 newline:			.byte 0xD, 0xA, 0
 score_prompt:		.string "Score: ", 0
 board: 				.string " -------------------- ", 0xA, 0xD
@@ -23,7 +25,7 @@ board: 				.string " -------------------- ", 0xA, 0xD
 	   				.string "|                     |", 0xA, 0xD
 	   				.string "|      7              |", 0xA, 0xD
 	   				.string "|                     |", 0xA, 0xD
-	   				.string "|          *          |", 0xA, 0xD
+	   				.string "|                     |", 0xA, 0xD
 	   				.string "|                     |", 0xA, 0xD
 	   				.string "|                     |", 0xA, 0xD
 	   				.string "|                     |", 0xA, 0xD
@@ -66,6 +68,9 @@ position:			.byte 0 	; stores next input position
 ptr_to_newline:			.word newline
 ptr_to_score_prompt:	.word score_prompt
 ptr_to_board:			.word board
+ptr_to_coord:			.word start_coord
+ptr_to_space:			.word space
+ptr_to_asterisk:		.word asterisk
 
 ptr_to_score:			.word score
 ptr_to_paused:			.word paused
@@ -81,6 +86,11 @@ lab6:
 	BL uart_interrupt_init
 	BL gpio_interrupt_init
 	BL timer_interrupt_init
+
+	LDR r12, ptr_to_coord			; r12 register will be used to track "coordinates"
+	LDR r10, ptr_to_space			; r10 will be used to replace the asterisk with empty space after movement
+	LDR r11, ptr_to_asterisk		; r11 will be used to replace the empty space with asterisk after movement
+	LDR r9, ptr_to_board			; r9 will be pointer to mem for the board
 
 	; used to reset score and paused variables
 	MOV r4, #0
@@ -197,7 +207,49 @@ Timer_Handler:
 	ORR r5, r5, #TATOIM
 	STR r5, [r4, #GPTMICR]
 
+	LDR r4, ptr_to_position		; Load position byte
+	LDRB r5, [r4]
 
+	CMP r5, #1					; If position is up (W)
+	BEQ Move_UP
+
+	CMP r5, #2					; If position is left (A)
+	BEQ Move_LEFT
+
+	CMP r5, #3					; If position is down (S)
+	BEQ Move_DOWN
+
+	CMP r5, #4					; If position is right (D)
+	BEQ Move_RIGHT
+
+
+Move_UP:
+
+	STR r10, [r9, r12]			; Replace asterisk with empty space
+	SUB r12, r12, #24			; Go up (-24 to go down a row of strings in mem to imitate up movement)
+	STR r11, [r9, r12]			; Replace empty space with asterisk (new spot)
+	B timer_done
+
+Move_LEFT:
+
+	STR r10, [r9, r12]			; Replace asterisk with empty space
+	SUB r12, r12, #1			; Go left (-1 in mem to imitate left movement)
+	STR r11, [r9, r12]			; Replace empty space with asterisk (new spot)
+	B timer_done
+
+Move_DOWN:
+
+	STR r10, [r9, r12]			; Replace asterisk with empty space
+	ADD r12, r12, #24			; Go down (+24 to go down a row of strings in mem to imitate down movement)
+	STR r11, [r9, r12]			; Replace empty space with asterisk (new spot)
+	B timer_done
+
+Move_RIGHT:
+
+	STR r10, [r9, r12]			; Replace asterisk with empty space
+	ADD r12, r12, #1			; Go right (+1 in mem to imitate right movement)
+	STR r11, [r9, r12]			; Replace empty space with asterisk (new spot)
+	B timer_done
 
 
 timer_done:
