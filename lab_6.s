@@ -42,6 +42,8 @@ paused:				.byte 0
 
 	.global output_string
 
+
+
 	; global constants
 	.global UARTICR
 	.global RXIC
