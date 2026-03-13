@@ -16,7 +16,7 @@ RXIC:		.equ 0x010 		; UART Clear Bit Mask (Bit 4)
 EN0:		.equ 0x100 		; EN0 Offset
 UART_EN0M:	.equ 0x020		; UART0 Interrupt Enable Mask (Bit 5)
 ; GPIO_EN0M .equ 			BIT 30
-; T0_EN0M 	.equ 			BIT 19
+; T0_EN0M: 	.equ 0x80000	; BIT 19
 
 ; GPIO CONSTANTS - Base 0x400FE000
 RCGPIO:		.equ 0x608		; Enable GPIO Clock (Disable 0 / Enable 1)
@@ -33,7 +33,6 @@ GPTMIMR:	.equ 0x018		; Enable Timer for Interrupts (Disable 0 / Enable 1)
 TATOIM:		.equ 0x001		; Timer A Time Out Interrupt Mask (bit 0) (Disable 0 / Enable 1)
 GPTMCTL:	.equ 0x00C		; Enable Timer (Disable 0 / Enable 1)
 GPTMICR:	.equ 0x024 		; GPTM Interrupt Register Clear
-
 
 ; GPIO PORT F - Base 0x40025000
 GPIODIR:	.equ 0x400		; Data Direction Register
@@ -255,18 +254,69 @@ gpio_interrupt_init:
 timer_init:
 	PUSH {r4-r12, lr}
 
-	MOV r5, #0
+	MOV r4, #0xE000 			; Base address of timer
+	MOVT r4, #0x400F
+	LDR r5, [r4, #RCGCTIMER]
+	ORR r5, r5, #TATOIM 		; Enable clock
+	STR r5, [r4, #RCGCTIMER]
+
+timer_ready_check:				; Check if timers are ready after power up
+	LDR r5, [r4, #PRTIMER]
+	TST r5, #TATOIM
+	BEQ timer_ready_check
+
+
+Disable_Timer:
+	MOV r4, #0x0000
+	MOVT r4, #0x4003			; Base address for General Purpose Timer Control Reg (GPTMCTL)
+	LDR r5, [r4, #GPTMCTL]
+	ORR r5, #TATOIM				; Disable timer for setup
+	STR r5, [r4, #GPTMCTL]
+
+Configure_Timer:
+	LDR r5, [r4, #GPTMCFG]
+	AND r5, #0x000				; Choosing configuration 0
+	STR r5, [r4, #GPTMCFG]
+
+Periodic_Mode:
+	LDR r5, [r4, #GPTMTAMR]
+	ORR r5, #0x2
+	STR r5, [r4, #GPTMTAMR]		; Writing 2 to TAMR
+
+Interval_Period:
+	MOV r5, #0x2400
+	MOVT r5, #0xF4				; 16 MHz in hex (16,000,000)
+	STR r5, [r4, #GPTMTAILR]	; Writing Interval
 
 	POP {r4-r12, lr}
 	MOV pc, lr
-
-
 
 
 timer_interrupt_init:
 	PUSH {r4-r12, lr}
 
 	BL timer_init
+
+	MOV r4, #0x0000
+	MOVT r4, #0x4003			; Base address of timer
+	LDR r5, [r4, #GPTMIMR]
+	ORR r5, r5, #TATOIM
+	STR r5, [r4, #GPTMIMR]		; Writing 1 to TAOTIM
+
+Allow_Timer_interrupt:
+	MOV r4, #0xE000
+	MOVT r4, #0xE000			; Base address of EN0
+	LDR r5, [r4, #EN0]
+	MOVT r6, #0x0008			; Mask for bit 19
+	ORR r5, r5, r6				; Set bit 19
+	STR r5, [r4, #EN0]			; Setting bit 19 of Timer0A
+
+Enable_Timer:
+	MOV r4, #0x0000
+	MOVT r4, #04003				; Base address
+	LDR r5, [r4, #GPTMCTL]
+	ORR r5, r5, #TATOIM
+	STR r5, [r4, #GPTMCTL]		; Write 1 to TAEN
 
 	POP {r4-r12, lr}
 	MOV pc, lr
