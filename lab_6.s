@@ -37,6 +37,7 @@ board: 				.string " -------------------- ", 0xA, 0xD
 	   				.string "|                     |", 0xA, 0xD
 	   				.string "|                     |", 0xA, 0xD
 	   				.string " -------------------- ", 0x0
+player_lost:		.string "You're ass kid", 0
 
 
 timer:				.byte 0x14	; game timer set to 20 seconds
@@ -78,7 +79,7 @@ ptr_to_asterisk:		.word asterisk
 ptr_to_score:			.word score
 ptr_to_paused:			.word paused
 ptr_to_position:		.word position
-
+ptr_to_player_lost:		.word player_lost
 
 
 
@@ -240,6 +241,7 @@ Move_UP:
 
 	STR r10, [r9, r12]			; Replace asterisk with empty space
 	SUB r12, r12, #24			; Go up (-24 to go down a row of strings in mem to imitate up movement)
+	BL CHECK_WALL
 	STR r11, [r9, r12]			; Replace empty space with asterisk (new spot)
 	B timer_done
 
@@ -247,6 +249,7 @@ Move_LEFT:
 
 	STR r10, [r9, r12]			; Replace asterisk with empty space
 	SUB r12, r12, #1			; Go left (-1 in mem to imitate left movement)
+	BL CHECK_WALL
 	STR r11, [r9, r12]			; Replace empty space with asterisk (new spot)
 	B timer_done
 
@@ -254,6 +257,7 @@ Move_DOWN:
 
 	STR r10, [r9, r12]			; Replace asterisk with empty space
 	ADD r12, r12, #24			; Go down (+24 to go down a row of strings in mem to imitate down movement)
+	BL CHECK_WALL
 	STR r11, [r9, r12]			; Replace empty space with asterisk (new spot)
 	B timer_done
 
@@ -261,16 +265,27 @@ Move_RIGHT:
 
 	STR r10, [r9, r12]			; Replace asterisk with empty space
 	ADD r12, r12, #1			; Go right (+1 in mem to imitate right movement)
+	BL CHECK_WALL
 	STR r11, [r9, r12]			; Replace empty space with asterisk (new spot)
 	B timer_done
 
+CHECK_WALL:
+	LDR r5, [r9, r12]
+	CMP r5, #0x2D				; If next spot is a wall
+	BEQ YOU_LOSE
+	CMP r5, #0x7D
+	BEQ YOU_LOSE
+
+	MOV pc, lr
 
 timer_done:
 	POP {r4-r12, lr}
 	BX lr
 
 
-
+YOU_LOSE:
+	LDR r0, ptr_to_player_lost
+	BL output_string
 
 	.end
 
