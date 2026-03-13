@@ -1,5 +1,15 @@
+
+UARTICR:	.equ 0x044 		; UART Interrupt Clear Register
+RXIC:		.equ 0x010 		; UART Clear Bit Mask (Bit 4)
+GPIOICR: 	.equ 0x41C		; GPIO Interrupt Clear Register
+SW1:		.equ 0x010		; Switch 1 Mask - Port F, Pin 4 (Bit 4)
+GPTMICR:	.equ 0x024 		; GPTM Interrupt Register Clear
+TATOIM:		.equ 0x001		; Timer A Time Out Interrupt Mask (bit 0) (Disable 0 / Enable 1)
+
+
 	.data
 
+clear_screen:		.byte 0xC,0
 space:				.byte 0x20
 newline:			.byte 0xD, 0xA, 0
 score_prompt:		.string "Score: ", 0
@@ -27,16 +37,17 @@ board: 				.string " -------------------- ", 0xA, 0xD
 	   				.string " -------------------- ", 0x0
 
 
-score:				.byte 0	; user score
-paused:				.byte 0	; stores pause state
-								; 0 - not paused
-								; 1 - paused
-position:			.byte 0 ; stores next input position
-								; 0 - no user input yet (auto right)
-								; 1 - up (w)
-								; 2 - left (a)
-								; 3 - down (s)
-								; 4 - right (d)
+timer:				.byte 0x14	; game timer set to 20 seconds
+score:				.byte 0		; user score
+paused:				.byte 0		; stores pause state
+									; 0 - not paused
+									; 1 - paused
+position:			.byte 0 	; stores next input position
+									; 0 - no user input yet (auto right)
+									; 1 - up (w)
+									; 2 - left (a)
+									; 3 - down (s)
+									; 4 - right (d)
 
 
 	.text
@@ -50,17 +61,6 @@ position:			.byte 0 ; stores next input position
 	.global Timer_Handler
 
 	.global output_string
-
-
-
-	; global constants
-	.global UARTICR
-	.global RXIC
-	.global GPIOICR
-	.global SW1
-	.global GPTMICR
-	.global TATOIM
-
 
 
 ptr_to_newline:			.word newline
@@ -80,6 +80,7 @@ lab6:
 	BL uart_init
 	BL uart_interrupt_init
 	BL gpio_interrupt_init
+	BL timer_interrupt_init
 
 	; used to reset score and paused variables
 	MOV r4, #0
@@ -128,7 +129,7 @@ UART0_Handler:
 	MOV r5, #0				; set temp position to 0 (default)
 							; we then increment each input key we check because (up-1, left-2, down-3, right-4)
 
-	; Set user position
+	; Set user next position
 uart_up:
 	ADD r5, r5, #1
 	CMP r0, #0x77			; check for ascii [w]
@@ -147,6 +148,10 @@ uart_down:
 uart_right:
 	ADD r5, r5, #1
 	CMP r0, #0x64			; check for ascii [d]
+	BEQ uart_done
+
+	; if any other input, use current position
+	LDRB r5, [r4]
 
 uart_done:
 	; set next position to temp position
@@ -182,6 +187,7 @@ switch_done:
 
 
 
+
 Timer_Handler:
 	PUSH {r4-r12, lr}
 
@@ -192,6 +198,9 @@ Timer_Handler:
 	STR r5, [r4, #GPTMICR]
 
 
+
+
+timer_done:
 	POP {r4-r12, lr}
 	BX lr
 
