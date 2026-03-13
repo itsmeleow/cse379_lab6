@@ -9,7 +9,7 @@ TATOIM:		.equ 0x001		; Timer A Time Out Interrupt Mask (bit 0) (Disable 0 / Enab
 
 	.data
 
-clear_screen:		.byte 0xC,0
+clear_screen:		.byte 0xC, 0
 space:				.byte 0x20
 newline:			.byte 0xD, 0xA, 0
 score_prompt:		.string "Score: ", 0
@@ -23,7 +23,7 @@ board: 				.string " -------------------- ", 0xA, 0xD
 	   				.string "|                     |", 0xA, 0xD
 	   				.string "|      7              |", 0xA, 0xD
 	   				.string "|                     |", 0xA, 0xD
-	   				.string "|          *          |", 0xA, 0xD
+	   				.string "|                     |", 0xA, 0xD
 	   				.string "|                     |", 0xA, 0xD
 	   				.string "|                     |", 0xA, 0xD
 	   				.string "|                     |", 0xA, 0xD
@@ -42,7 +42,7 @@ score:				.byte 0		; user score
 paused:				.byte 0		; stores pause state
 									; 0 - not paused
 									; 1 - paused
-position:			.byte 0 	; stores next input position
+position:			.byte 0 	; stores next input positiondwd
 									; 0 - no user input yet (auto right)
 									; 1 - up (w)
 									; 2 - left (a)
@@ -56,13 +56,16 @@ position:			.byte 0 	; stores next input position
 	.global uart_init
 	.global uart_interrupt_init
 	.global	gpio_interrupt_init
+	.global timer_interrupt_init
 	.global UART0_Handler
 	.global Switch_Handler
 	.global Timer_Handler
 
+	.global simple_read_character
 	.global output_string
 
 
+ptr_to_clear_screen		.word clear_screen
 ptr_to_newline:			.word newline
 ptr_to_score_prompt:	.word score_prompt
 ptr_to_board:			.word board
@@ -100,7 +103,11 @@ lab6:
 
 	LDR r0, ptr_to_board
 	BL output_string
+
 start_game:
+	; initialize player
+	; LDR r0, ptr_to_clear_screen
+	; BL output_string
 
 
 
@@ -186,6 +193,12 @@ switch_done:
 
 
 
+output_board:
+	PUSH {r4-r12, lr}
+
+
+	POP {r4-r12, lr}
+	MOV pc, lr
 
 
 Timer_Handler:
