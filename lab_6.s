@@ -51,6 +51,8 @@ position:			.byte 0 ; stores next input position
 
 	.global output_string
 
+
+
 	; global constants
 	.global UARTICR
 	.global RXIC
