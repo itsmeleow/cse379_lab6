@@ -1,6 +1,7 @@
 	.data
 
-newline:			.byte 0x0D, 0x0A, 0
+space:				.byte 0x20
+newline:			.byte 0xD, 0xA, 0
 score_prompt:		.string "Score: ", 0
 board: 				.string " -------------------- ", 0xA, 0xD
 					.string "|  4                  |", 0xA, 0xD
@@ -26,8 +27,16 @@ board: 				.string " -------------------- ", 0xA, 0xD
 	   				.string " -------------------- ", 0x0
 
 
-score:				.byte 0
-paused:				.byte 0
+score:				.byte 0	; user score
+paused:				.byte 0	; stores pause state
+								; 0 - not paused
+								; 1 - paused
+position:			.byte 0 ; stores next input position
+								; 0 - no user input yet (auto right)
+								; 1 - up (w)
+								; 2 - left (a)
+								; 3 - down (s)
+								; 4 - right (d)
 
 
 	.text
@@ -58,6 +67,7 @@ ptr_to_board:			.word board
 
 ptr_to_score:			.word score
 ptr_to_paused:			.word paused
+ptr_to_position:		.word position
 
 
 
@@ -107,6 +117,38 @@ UART0_Handler:
 	ORR r5, r5, #RXIC
 	STR r5, [r4, #UARTICR]
 
+	; read the character passed to input
+	BL simple_read_character
+
+	; get current position
+	LDR r4, ptr_to_position
+
+	MOV r5, #0				; set temp position to 0 (default)
+							; we then increment each input key we check because (up-1, left-2, down-3, right-4)
+
+	; Set user position
+uart_up:
+	ADD r5, r5, #1
+	CMP r0, #0x77			; check for ascii [w]
+	BEQ uart_done
+
+uart_left:
+	ADD r5, r5, #1
+	CMP r0, #0x61			; check for ascii [a]
+	BEQ uart_done
+
+uart_down:
+	ADD r5, r5, #1
+	CMP r0, #0x73			; check for ascii [s]
+	BEQ uart_done
+
+uart_right:
+	ADD r5, r5, #1
+	CMP r0, #0x64			; check for ascii [d]
+
+uart_done:
+	; set next position to temp position
+	STRB r5, [r4]
 
 	POP {r4-r12, lr}
 	BX lr
