@@ -4,10 +4,20 @@
 	.global uart_interrupt_init
 	.global gpio_init
 	.global gpio_interrupt_init
+	.global timer_interrupt_init
+	.global simple_read_character
 	.global output_character
 	.global read_string
 	.global output_string
-	.global simple_read_character
+
+
+	; global constants
+	.global UARTICR
+	.global RXIC
+	.global GPIOICR
+	.global SW1
+	.global GPTMICR
+	.global TATOIM
 
 
 ; UART0 CONSTANTS - Base Address 0x4000C000
@@ -40,9 +50,10 @@ GPTMCFG:	.equ 0x00		; Enable Timer 32-Bit Mode (use config 0)
 GPTMTAMR:	.equ 0x004		; Enable Timer Periodic Mode - continuously count through range of values
 GPTMTAILR:	.equ 0x028		; Set Interrupt Frequency
 GPTMIMR:	.equ 0x018		; Enable Timer for Interrupts (Disable 0 / Enable 1)
-TATOIM:		.equ 0x000		; Timer A Time Out Interrupt Mask
+TATOIM:		.equ 0x001		; Timer A Time Out Interrupt Mask (bit 0) (Disable 0 / Enable 1)
 GPTMCTL:	.equ 0x00C		; Enable Timer (Disable 0 / Enable 1)
-TAEN:		.equ 0x000		; Enable Timer A - bit 0 (Disable 0 / Enable 1)
+GPTMICR:	.equ 0x024 		; GPTM Interrupt Register Clear
+
 
 ; GPIO PORT F - Base 0x40025000
 GPIODIR:	.equ 0x400		; Data Direction Register
@@ -245,6 +256,28 @@ gpio_interrupt_init:
 	STR r5, [r4, #EN0]
 
 	POP {r4-r12,lr}
+	MOV pc, lr
+
+
+
+
+timer_init:
+	PUSH {r4-r12, lr}
+
+
+
+	POP {r4-r12, lr}
+	MOV pc, lr
+
+
+
+
+timer_interrupt_init:
+	PUSH {r4-r12, lr}
+
+	BL timer_init
+
+	POP {r4-r12, lr}
 	MOV pc, lr
 
 
