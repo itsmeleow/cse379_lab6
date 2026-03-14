@@ -5,8 +5,6 @@ GPIOICR: 	.equ 0x41C		; GPIO Interrupt Clear Register
 SW1:		.equ 0x010		; Switch 1 Mask - Port F, Pin 4 (Bit 4)
 GPTMICR:	.equ 0x024 		; GPTM Interrupt Register Clear
 TATOIM:		.equ 0x001		; Timer A Time Out Interrupt Mask (bit 0) (Disable 0 / Enable 1)
-TATOIM:		.equ 0x001		; Timer A Time Out Interrupt Mask (bit 0) (Disable 0 / Enable 1)
-
 
 GPTMCTL:	.equ 0x00C		; Enable Timer (Disable 0 / Enable 1)
 
@@ -72,7 +70,7 @@ position:			.byte 0 	; stores next input position
 	.global output_string
 
 
-ptr_to_clear_screen		.word clear_screen
+ptr_to_clear_screen:	.word clear_screen
 ptr_to_newline:			.word newline
 ptr_to_score_prompt:	.word score_prompt
 ptr_to_board:			.word board
@@ -80,10 +78,12 @@ ptr_to_coord:			.word start_coord
 ptr_to_space:			.word space
 ptr_to_asterisk:		.word asterisk
 
+ptr_to_timer:			.word timer
 ptr_to_score:			.word score
 ptr_to_paused:			.word paused
 ptr_to_position:		.word position
 ptr_to_player_lost:		.word player_lost
+
 
 
 
@@ -173,9 +173,10 @@ uart_done:
 pause_timer:
 	PUSH {r4-r12, lr}
 
+	MOV r4, #0x0000
 	MOVT r4, #0x4003
 	LDR r5, [r4, #GPTMCTL]
-	BIC r5, #TATOIM
+	BIC r5, r5, #TATOIM
 	STR r5, [r4, #GPTMCTL]
 
 	POP {r4-r12, lr}
@@ -188,9 +189,10 @@ pause_timer:
 enable_timer:
 	PUSH {r4-r12, lr}
 
+	MOV r4, #0x0000
 	MOVT r4, #0x4003
 	LDR r5, [r4, #GPTMCTL]
-	ORR r5, #TATOIM
+	ORR r5, r5, #TATOIM
 	STR r5, [r4, #GPTMCTL]
 
 	POP {r4-r12, lr}
@@ -233,6 +235,7 @@ switch_done:
 
 
 
+
 ; clear board and output new game board with player new coordinates
 output_board:
 	PUSH {r4-r12, lr}
@@ -262,11 +265,17 @@ Timer_Handler:
 	PUSH {r4-r12, lr}
 
 	; Clear Interrupt
+	MOV r4, #0x0000
 	MOVT r4, #0x4003
 	LDR r5, [r4, #GPTMICR]
 	ORR r5, r5, #TATOIM
 	STR r5, [r4, #GPTMICR]
 
+	; decrement timer each time timer handler is called
+	LDR r4, ptr_to_timer
+	LDRB r5, [r4]
+	SUB r5, r5, #1
+	STRB r5, [r4]
 
 	LDR r4, ptr_to_position		; Load position byte
 	LDRB r5, [r4]
@@ -325,14 +334,19 @@ CHECK_WALL:
 
 	MOV pc, lr
 
+YOU_LOSE:
+	LDR r0, ptr_to_player_lost
+	BL output_string
+	; end the timer because the game is finished
+	BL pause_timer
+
 timer_done:
+	BL output_board
 	POP {r4-r12, lr}
 	BX lr
 
 
-YOU_LOSE:
-	LDR r0, ptr_to_player_lost
-	BL output_string
+
 
 	.end
 
