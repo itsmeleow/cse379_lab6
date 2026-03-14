@@ -91,12 +91,6 @@ lab6:
 	BL gpio_interrupt_init
 	BL timer_interrupt_init
 
-	LDR r12, ptr_to_coord			; r12 register will be used to track "coordinates"
-	LDR r10, ptr_to_space			; r10 will be used to replace the asterisk with empty space after movement
-	LDR r11, ptr_to_asterisk		; r11 will be used to replace the empty space with asterisk after movement
-	LDR r9, ptr_to_board			; r9 will be pointer to mem for the board
-	LDR r8, ptr_to_score			; r8 will be pointer to mem for score
-
 	; used to reset score and paused variables
 	MOV r4, #0
 
@@ -214,6 +208,13 @@ output_board:
 
 Timer_Handler:
 	PUSH {r4-r12, lr}
+
+	LDR r12, ptr_to_coord			; r12 register will be used to track "coordinates"
+	LDR r10, ptr_to_space			; r10 will be used to replace the asterisk with empty space after movement
+	LDR r11, ptr_to_asterisk		; r11 will be used to replace the empty space with asterisk after movement
+	LDR r9, ptr_to_board			; r9 will be pointer to mem for the board
+	LDR r8, ptr_to_score			; r8 will be pointer to mem for score
+
 
 	; Clear Interrupt
 	MOVT r4, #0x4003
