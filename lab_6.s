@@ -6,6 +6,8 @@ SW1:		.equ 0x010		; Switch 1 Mask - Port F, Pin 4 (Bit 4)
 GPTMICR:	.equ 0x024 		; GPTM Interrupt Register Clear
 TATOIM:		.equ 0x001		; Timer A Time Out Interrupt Mask (bit 0) (Disable 0 / Enable 1)
 
+GPTMCTL:	.equ 0x00C		; Enable Timer (Disable 0 / Enable 1)
+
 
 	.data
 
@@ -45,7 +47,7 @@ score:				.byte 0		; user score
 paused:				.byte 0		; stores pause state
 									; 0 - not paused
 									; 1 - paused
-position:			.byte 0 	; stores next input positiondwd
+position:			.byte 0 	; stores next input position
 									; 0 - no user input yet (auto right)
 									; 1 - up (w)
 									; 2 - left (a)
@@ -68,7 +70,7 @@ position:			.byte 0 	; stores next input positiondwd
 	.global output_string
 
 
-ptr_to_clear_screen		.word clear_screen
+ptr_to_clear_screen:	.word clear_screen
 ptr_to_newline:			.word newline
 ptr_to_score_prompt:	.word score_prompt
 ptr_to_board:			.word board
@@ -76,10 +78,12 @@ ptr_to_coord:			.word start_coord
 ptr_to_space:			.word space
 ptr_to_asterisk:		.word asterisk
 
+ptr_to_timer:			.word timer
 ptr_to_score:			.word score
 ptr_to_paused:			.word paused
 ptr_to_position:		.word position
 ptr_to_player_lost:		.word player_lost
+
 
 
 
@@ -97,24 +101,8 @@ lab6:
 	LDR r0, ptr_to_paused
 	STRB r4, [r0]
 
-	LDR r0, ptr_to_score_prompt
-	BL output_string
-
 	LDR r0, ptr_to_score
 	STRB r4, [r0]
-	BL output_string
-
-	LDR r0, ptr_to_newline
-	BL output_string
-
-	LDR r0, ptr_to_board
-	BL output_string
-
-start_game:
-	; initialize player
-	; LDR r0, ptr_to_clear_screen
-	; BL output_string
-
 
 	POP {r4-r12, lr}
 	MOV pc, lr
@@ -174,6 +162,39 @@ uart_done:
 
 
 
+
+; disables the Timer (pauses the game)
+pause_timer:
+	PUSH {r4-r12, lr}
+
+	MOV r4, #0x0000
+	MOVT r4, #0x4003
+	LDR r5, [r4, #GPTMCTL]
+	BIC r5, r5, #TATOIM
+	STR r5, [r4, #GPTMCTL]
+
+	POP {r4-r12, lr}
+	MOV pc, lr
+
+
+
+
+; enables the Timer (resumes the game)
+enable_timer:
+	PUSH {r4-r12, lr}
+
+	MOV r4, #0x0000
+	MOVT r4, #0x4003
+	LDR r5, [r4, #GPTMCTL]
+	ORR r5, r5, #TATOIM
+	STR r5, [r4, #GPTMCTL]
+
+	POP {r4-r12, lr}
+	MOV pc, lr
+
+
+
+
 ; Handles pause/unpause game when SW1 is clicked
 Switch_Handler:
 	PUSH {r4-r12, lr}
@@ -185,12 +206,22 @@ Switch_Handler:
 	ORR r5, r5, #SW1
 	STR r5, [r4, #GPIOICR]
 
-	; inverts the paused state
+	; inverts the paused state (pause -> resume ; resume -> pause)
 	LDR r4, ptr_to_paused
 	LDRB r5, [r4]
 	MOV r6, #1
 	EOR r5, r5, r6
 	STRB r5, [r4]
+
+	CMP r5, #1
+	BNE resume_game
+
+pause_game:
+	BL pause_timer
+	B switch_done
+
+resume_game:
+	BL enable_timer
 
 switch_done:
 	POP {r4-r12, lr}
@@ -198,12 +229,30 @@ switch_done:
 
 
 
+
+; clear board and output new game board with player new coordinates
 output_board:
 	PUSH {r4-r12, lr}
 
+	LDR r0, ptr_to_clear_screen
+	BL output_string
+
+	LDR r0, ptr_to_score_prompt
+	BL output_string
+
+	LDR r0, ptr_to_score
+	BL output_string
+
+	LDR r0, ptr_to_newline
+	BL output_string
+
+	LDR r0, ptr_to_board
+	BL output_string
 
 	POP {r4-r12, lr}
 	MOV pc, lr
+
+
 
 
 Timer_Handler:
@@ -217,10 +266,17 @@ Timer_Handler:
 
 
 	; Clear Interrupt
+	MOV r4, #0x0000
 	MOVT r4, #0x4003
 	LDR r5, [r4, #GPTMICR]
 	ORR r5, r5, #TATOIM
 	STR r5, [r4, #GPTMICR]
+
+	; decrement timer each time timer handler is called
+	LDR r4, ptr_to_timer
+	LDRB r5, [r4]
+	SUB r5, r5, #1
+	STRB r5, [r4]
 
 	LDR r4, ptr_to_position		; Load position byte
 	LDRB r5, [r4]
@@ -283,7 +339,14 @@ CHECK_WALL:
 
 	MOV pc, lr
 
+YOU_LOSE:
+	LDR r0, ptr_to_player_lost
+	BL output_string
+	; end the timer because the game is finished
+	BL pause_timer
+
 timer_done:
+	BL output_board
 	POP {r4-r12, lr}
 	BX lr
 
@@ -299,9 +362,7 @@ Continue:
 	MOV pc, lr
 
 
-YOU_LOSE:
-	LDR r0, ptr_to_player_lost
-	BL output_string
+
 
 	.end
 

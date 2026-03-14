@@ -270,17 +270,17 @@ Disable_Timer:
 	MOV r4, #0x0000
 	MOVT r4, #0x4003			; Base address for General Purpose Timer Control Reg (GPTMCTL)
 	LDR r5, [r4, #GPTMCTL]
-	BIC r5, r5, #TATOIM				; Disable timer for setup
+	BIC r5, r5, #TATOIM			; Disable timer for setup
 	STR r5, [r4, #GPTMCTL]
 
 Configure_Timer:
 	LDR r5, [r4, #GPTMCFG]
-	AND r5, #0x000				; Choosing configuration 0
+	AND r5, r5, #0x000			; Choosing configuration 0
 	STR r5, [r4, #GPTMCFG]
 
 Periodic_Mode:
 	LDR r5, [r4, #GPTMTAMR]
-	ORR r5, #0x2
+	ORR r5, r5, #0x2
 	STR r5, [r4, #GPTMTAMR]		; Writing 2 to TAMR
 
 Interval_Period:
@@ -313,7 +313,7 @@ Allow_Timer_interrupt:
 
 Enable_Timer:
 	MOV r4, #0x0000
-	MOVT r4, #04003				; Base address
+	MOVT r4, #0x4003			; Base address
 	LDR r5, [r4, #GPTMCTL]
 	ORR r5, r5, #TATOIM
 	STR r5, [r4, #GPTMCTL]		; Write 1 to TAEN
