@@ -270,7 +270,7 @@ Disable_Timer:
 	MOV r4, #0x0000
 	MOVT r4, #0x4003			; Base address for General Purpose Timer Control Reg (GPTMCTL)
 	LDR r5, [r4, #GPTMCTL]
-	ORR r5, #TATOIM				; Disable timer for setup
+	BIC r5, r5, #TATOIM				; Disable timer for setup
 	STR r5, [r4, #GPTMCTL]
 
 Configure_Timer:
