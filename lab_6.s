@@ -95,11 +95,6 @@ lab6:
 	BL gpio_interrupt_init
 	BL timer_interrupt_init
 
-	LDR r12, ptr_to_coord			; r12 register will be used to track "coordinates"
-	LDR r10, ptr_to_space			; r10 will be used to replace the asterisk with empty space after movement
-	LDR r11, ptr_to_asterisk		; r11 will be used to replace the empty space with asterisk after movement
-	LDR r9, ptr_to_board			; r9 will be pointer to mem for the board
-
 	; used to reset score and paused variables
 	MOV r4, #0
 
@@ -108,7 +103,6 @@ lab6:
 
 	LDR r0, ptr_to_score
 	STRB r4, [r0]
-
 
 	POP {r4-r12, lr}
 	MOV pc, lr
@@ -264,6 +258,13 @@ output_board:
 Timer_Handler:
 	PUSH {r4-r12, lr}
 
+	LDR r12, ptr_to_coord			; r12 register will be used to track "coordinates"
+	LDR r10, ptr_to_space			; r10 will be used to replace the asterisk with empty space after movement
+	LDR r11, ptr_to_asterisk		; r11 will be used to replace the empty space with asterisk after movement
+	LDR r9, ptr_to_board			; r9 will be pointer to mem for the board
+	LDR r8, ptr_to_score			; r8 will be pointer to mem for score
+
+
 	; Clear Interrupt
 	MOV r4, #0x0000
 	MOVT r4, #0x4003
@@ -298,6 +299,7 @@ Move_UP:
 	STR r10, [r9, r12]			; Replace asterisk with empty space
 	SUB r12, r12, #24			; Go up (-24 to go down a row of strings in mem to imitate up movement)
 	BL CHECK_WALL
+	BL CHECK_POINTS				; Check if space is a number
 	STR r11, [r9, r12]			; Replace empty space with asterisk (new spot)
 	B timer_done
 
@@ -306,6 +308,7 @@ Move_LEFT:
 	STR r10, [r9, r12]			; Replace asterisk with empty space
 	SUB r12, r12, #1			; Go left (-1 in mem to imitate left movement)
 	BL CHECK_WALL
+	BL CHECK_POINTS				; Check if space is a number
 	STR r11, [r9, r12]			; Replace empty space with asterisk (new spot)
 	B timer_done
 
@@ -314,6 +317,7 @@ Move_DOWN:
 	STR r10, [r9, r12]			; Replace asterisk with empty space
 	ADD r12, r12, #24			; Go down (+24 to go down a row of strings in mem to imitate down movement)
 	BL CHECK_WALL
+	BL CHECK_POINTS				; Check if space is a number
 	STR r11, [r9, r12]			; Replace empty space with asterisk (new spot)
 	B timer_done
 
@@ -322,6 +326,7 @@ Move_RIGHT:
 	STR r10, [r9, r12]			; Replace asterisk with empty space
 	ADD r12, r12, #1			; Go right (+1 in mem to imitate right movement)
 	BL CHECK_WALL
+	BL CHECK_POINTS				; Check if space is a number
 	STR r11, [r9, r12]			; Replace empty space with asterisk (new spot)
 	B timer_done
 
@@ -344,6 +349,17 @@ timer_done:
 	BL output_board
 	POP {r4-r12, lr}
 	BX lr
+
+CHECK_POINTS:
+	LDR r5, [r9, r12]
+	CMP r5, #0x20				; Check if this is a space
+	BEQ Continue				; Is a space, so we don't add value to points
+	SUB r5, r5, #0x30			; Get score value
+	LDR r6, [r8]				; Get current score
+	ADD r5, r5, r6				; Add current score to whatever score was just taken
+
+Continue:
+	MOV pc, lr
 
 
 
