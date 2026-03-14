@@ -285,7 +285,7 @@ Periodic_Mode:
 
 Interval_Period:
 	MOV r5, #0x2400
-	MOVT r5, #0xF4				; 16 MHz in hex (16,000,000)
+	MOVT r5, #0x00F4			; 16 MHz in hex (16,000,000)
 	STR r5, [r4, #GPTMTAILR]	; Writing Interval
 
 	POP {r4-r12, lr}

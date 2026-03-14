@@ -14,7 +14,7 @@ GPTMCTL:	.equ 0x00C		; Enable Timer (Disable 0 / Enable 1)
 clear_screen:		.byte 0xC, 0
 space:				.byte 0x20
 asterisk:			.byte 0x2A
-start_coord:		.half 0xFA
+start_coord:		.half 0x102
 newline:			.byte 0xD, 0xA, 0
 score_prompt:		.string "Score: ", 0
 board: 				.string " -------------------- ", 0xA, 0xD
@@ -42,13 +42,13 @@ board: 				.string " -------------------- ", 0xA, 0xD
 player_lost:		.string "You're ass kid", 0
 
 
-timer:				.byte 0x14	; game timer set to 20 seconds
+timer:				.byte 0x1E	; game timer set to 30 seconds to account for speedup requirement dropped
 score:				.byte 0		; user score
 paused:				.byte 0		; stores pause state
 									; 0 - not paused
 									; 1 - paused
-position:			.byte 0 	; stores next input position
-									; 0 - no user input yet (auto right)
+position:			.byte 4 	; stores next input position
+									; 0 - no user input yet
 									; 1 - up (w)
 									; 2 - left (a)
 									; 3 - down (s)
@@ -67,6 +67,7 @@ position:			.byte 0 	; stores next input position
 	.global Timer_Handler
 
 	.global simple_read_character
+	.global output_character
 	.global output_string
 
 
@@ -95,14 +96,36 @@ lab6:
 	BL gpio_interrupt_init
 	BL timer_interrupt_init
 
-	; used to reset score and paused variables
+	; reset score and paused variables to 0
 	MOV r4, #0
-
 	LDR r0, ptr_to_paused
 	STRB r4, [r0]
-
 	LDR r0, ptr_to_score
 	STRB r4, [r0]
+
+	; reset timer to 20
+	MOV r4, #0x1E
+	LDR r0, ptr_to_timer
+	STRB r4, [r0]
+
+	; reset player next position to 4 (default right)
+	MOV r4, #4
+	LDR r0, ptr_to_position
+	STRB r4, [r0]
+
+	; place the asterisk (player) on the board
+	; r4 is the address of the board
+	LDR r4, ptr_to_board
+	; r5 is the offset of the board we will add to place the asterisk
+	LDR r0, ptr_to_coord
+	LDRH r5, [r0]
+
+	; r6 holds a single *
+	LDR r0, ptr_to_asterisk
+	LDRB r6, [r0]
+	STRB r6, [r4, r5]
+
+	BL output_board
 
 	POP {r4-r12, lr}
 	MOV pc, lr
@@ -241,7 +264,23 @@ output_board:
 	BL output_string
 
 	LDR r0, ptr_to_score
-	BL output_string
+	LDRB r0, [r0]
+
+	MOV r1, #0
+is_tens:
+	CMP r0, #10
+	BLT print_score
+	SUB r0, r0, #10
+	ADD r1, r1, #1
+	B is_tens
+
+print_score:
+	ADD r3, r0, #0				; save score r0 in temp
+	ADD r0, r1, #0x30			; convert the tens place to ascii
+	BL output_character
+	ADD r0, r3, #0
+	ADD r0, r0, #0x30			; convert the ones place to ascii
+	BL output_character
 
 	LDR r0, ptr_to_newline
 	BL output_string
@@ -277,6 +316,17 @@ Timer_Handler:
 	LDRB r5, [r4]
 	SUB r5, r5, #1
 	STRB r5, [r4]
+	CMP r5, #0
+	BEQ YOU_LOSE				; game over if time is up
+
+	LDR r8, ptr_to_coord			; r12 register will be used to track "coordinates"
+	LDRH r12, [r8]
+	LDR r11, ptr_to_asterisk		; r11 will be used to replace the empty space with asterisk after movement
+	LDRB r11, [r11]
+	LDR r10, ptr_to_space			; r10 will be used to replace the asterisk with empty space after movement
+	LDRB r10, [r10]
+	LDR r9, ptr_to_board			; r9 will be pointer to mem for the board
+
 
 	LDR r4, ptr_to_position		; Load position byte
 	LDRB r5, [r4]
@@ -290,53 +340,65 @@ Timer_Handler:
 	CMP r5, #3					; If position is down (S)
 	BEQ Move_DOWN
 
-	CMP r5, #4					; If position is right (D)
-	BEQ Move_RIGHT
+	B Move_RIGHT				; If position is right (D)
 
 
 Move_UP:
 
-	STR r10, [r9, r12]			; Replace asterisk with empty space
+	STRB r10, [r9, r12]			; Replace asterisk with empty space
 	SUB r12, r12, #24			; Go up (-24 to go down a row of strings in mem to imitate up movement)
-	BL CHECK_WALL
-	BL CHECK_POINTS				; Check if space is a number
-	STR r11, [r9, r12]			; Replace empty space with asterisk (new spot)
-	B timer_done
+	B move
 
 Move_LEFT:
 
-	STR r10, [r9, r12]			; Replace asterisk with empty space
+	STRB r10, [r9, r12]			; Replace asterisk with empty space
 	SUB r12, r12, #1			; Go left (-1 in mem to imitate left movement)
-	BL CHECK_WALL
-	BL CHECK_POINTS				; Check if space is a number
-	STR r11, [r9, r12]			; Replace empty space with asterisk (new spot)
-	B timer_done
+	B move
 
 Move_DOWN:
 
-	STR r10, [r9, r12]			; Replace asterisk with empty space
+	STRB r10, [r9, r12]			; Replace asterisk with empty space
 	ADD r12, r12, #24			; Go down (+24 to go down a row of strings in mem to imitate down movement)
-	BL CHECK_WALL
-	BL CHECK_POINTS				; Check if space is a number
-	STR r11, [r9, r12]			; Replace empty space with asterisk (new spot)
-	B timer_done
+	B move
 
 Move_RIGHT:
 
-	STR r10, [r9, r12]			; Replace asterisk with empty space
+	STRB r10, [r9, r12]			; Replace asterisk with empty space
 	ADD r12, r12, #1			; Go right (+1 in mem to imitate right movement)
+
+move:
 	BL CHECK_WALL
-	BL CHECK_POINTS				; Check if space is a number
-	STR r11, [r9, r12]			; Replace empty space with asterisk (new spot)
+	STRB r11, [r9, r12]			; Replace empty space with asterisk (new spot)
+	STRH r12, [r8]				; store the new coords back into memory
 	B timer_done
 
+
 CHECK_WALL:
-	LDR r5, [r9, r12]
-	CMP r5, #0x2D				; If next spot is a wall
+	LDRB r5, [r9, r12]
+	CMP r5, #0x2D				; check if next position is "-"
 	BEQ YOU_LOSE
-	CMP r5, #0x7D
+	CMP r5, #0x7C				; check if next position is "|"
 	BEQ YOU_LOSE
 
+	; check if it is a number 1-9 | 0x31 - 0x39
+	CMP r5, #0x31
+	BLT skip_addscore
+	CMP r5, #0x39
+	BGT skip_addscore
+
+	; add to score if we find a number
+	SUB r6, r5, #0x30
+	LDR r7, ptr_to_score
+	LDRB r0, [r7]
+	ADD r0, r0, r6				; increment score by r5(score) + 0x30 for ascii
+	STRB r0, [r7]
+
+
+
+
+	MOV pc, lr
+
+skip_addscore:
 	MOV pc, lr
 
 YOU_LOSE:
